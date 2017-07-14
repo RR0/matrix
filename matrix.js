@@ -17,10 +17,9 @@ class Choice {
 
 class MatrixService {
 
-  constructor($log, $q, $rootScope, $http) {
+  constructor($log, $q, $http) {
     this.$log = $log;
     this.$q = $q;
-    this.$rootScope = $rootScope;
     this.$http = $http;
   }
 
@@ -59,48 +58,42 @@ class MatrixService {
   }
 
   loadMatrixData(matrixData, labelsInput) {
-    this.loadLabels(labelsInput)
-      .then(messages => {
-          this.msg = messages;
-          let i = 0;
-          const questions = (this.questions = {});
-          for (const d in matrixData) {
-            if (matrixData.hasOwnProperty(d)) {
-              const item = matrixData[d];
-              const dotPos = item.question.indexOf(".");
-              const questionKey = item.question.substring(0, dotPos);
-              const choiceKey = item.question.substring(dotPos + 1);
-              let question = questions[questionKey];
-              if (!question) {
-                question = new Question(messages[questionKey], i++);
-                questions[questionKey] = question;
+    return this.$q((resolve, reject) => {
+      this.loadLabels(labelsInput)
+        .then(messages => {
+            this.msg = messages;
+            let i = 0;
+            const questions = (this.questions = {});
+            for (const d in matrixData) {
+              if (matrixData.hasOwnProperty(d)) {
+                const item = matrixData[d];
+                const dotPos = item.question.indexOf(".");
+                const questionKey = item.question.substring(0, dotPos);
+                const choiceKey = item.question.substring(dotPos + 1);
+                let question = questions[questionKey];
+                if (!question) {
+                  question = new Question(messages[questionKey], i++);
+                  questions[questionKey] = question;
+                }
+                question.choices[choiceKey] = new Choice(
+                  messages[item.question],
+                  item.answertype,
+                  item.knownPhenomenaProbabilities
+                );
               }
-              question.choices[choiceKey] = new Choice(
-                messages[item.question],
-                item.answertype,
-                item.knownPhenomenaProbabilities
-              );
             }
-          }
-          this.$rootScope.$broadcast("dataLoaded", questions);
-        },
-        function (reason) {
-          this.$log.error(reason);
-          this.$rootScope.$broadcast("dataError", reason);
-        }
-      );
+            resolve(questions);
+          },
+          (reason) => reject(reason)
+        );
+    });
   }
 
   load(matrixInput, labelsInput) {
-    if (typeof matrixInput === "object") {
-      this.loadFile(matrixInput)
-        .then(matrixData => this.loadMatrixData(matrixData, labelsInput))
-        .catch(reason => this.$rootScope.$broadcast("dataError", reason));
-    } else {
-      this.loadURL(matrixInput)
-        .then(matrixData => this.loadMatrixData(matrixData, labelsInput))
-        .catch(reason => this.$rootScope.$broadcast("dataError", reason));
-    }
+    return this.$q((resolve, reject) => (typeof matrixInput === "object" ? this.loadFile(matrixInput) : this.loadURL(matrixInput))
+      .then(matrixData => this.loadMatrixData(matrixData, labelsInput))
+      .then(questions => resolve(questions))
+      .catch(reason => reject(reason)));
   }
 
   compute(probable) {
@@ -163,25 +156,15 @@ class Field {
     this.label = label;
   }
 }
+
 class MatrixFormController {
-  constructor($log, $scope, matrixService) {
+
+  constructor($log, matrixService) {
     this.$log = $log;
-    this.$scope = $scope;
     this.matrixService = matrixService;
 
     this.resultsType = "NonProbable";
     this.questionIndex = 0;
-
-    $scope.$on("dataError", (event, msg) => {
-      $log.error(msg);
-      window.alert(msg);
-    });
-
-    $scope.$on("dataLoaded", (event, questions) => {
-      this.questions = questions;
-      this.questionsKeys = Object.keys(questions);
-      this.questionChanged();
-    });
   }
 
   load() {
@@ -189,7 +172,16 @@ class MatrixFormController {
     const labelsInput = document.getElementById("labelsFile").files[0] || this.labelsURL;
     if (matrixInput && labelsInput) {
       this.questions = [];
-      this.matrixService.load(matrixInput, labelsInput);
+      this.matrixService.load(matrixInput, labelsInput)
+        .then(questions => {
+          this.questions = questions;
+          this.questionsKeys = Object.keys(questions);
+          this.questionChanged();
+        })
+        .catch(reason => {
+          this.$log.error(reason);
+          window.alert(reason);
+        });
     }
   }
 
@@ -242,6 +234,7 @@ class MatrixFormController {
     this.explanations = this.matrixService.compute(this.resultsType === "NonProbable");
   }
 }
+
 angular.module("rr0-matrix", [])
   .service("matrixService", MatrixService)
   .controller("MatrixFormController", MatrixFormController);
