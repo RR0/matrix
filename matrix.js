@@ -25,13 +25,13 @@ class MatrixService {
 
   loadURL(u) {
     return this.$q((resolve, reject) => {
-      this.$http({method: "GET", url: u})
+      this.$http.get(u)
         .then(response => {
-          this.$log.info("Loaded '" + u + "'");
+          this.$log.info(`Loaded '${u}'`);
           resolve(response.data);
         })
         .catch((response, status) => {
-          reject("Could not load '" + u + "': " + status);
+          reject(`Could not load '${u}': ${status}`);
         });
     });
   }
@@ -51,10 +51,13 @@ class MatrixService {
     });
   }
 
+  loadFunc(input) {
+    const fn = typeof input === 'object' ? this.loadFile : this.loadURL;
+    return fn.bind(this)(input);
+  }
+
   loadLabels(labelsInput) {
-    return typeof labelsInput === "object"
-      ? this.loadFile(labelsInput)
-      : this.loadURL(labelsInput);
+    return this.loadFunc(labelsInput);
   }
 
   loadMatrixData(matrixData, labelsInput) {
@@ -67,16 +70,17 @@ class MatrixService {
             for (const d in matrixData) {
               if (matrixData.hasOwnProperty(d)) {
                 const item = matrixData[d];
-                const dotPos = item.question.indexOf(".");
-                const questionKey = item.question.substring(0, dotPos);
-                const choiceKey = item.question.substring(dotPos + 1);
+                const questionString = item.question;
+                const dotPos = questionString.indexOf('.');
+                const questionKey = questionString.substring(0, dotPos);
+                const choiceKey = questionString.substring(dotPos + 1);
                 let question = questions[questionKey];
                 if (!question) {
                   question = new Question(messages[questionKey], i++);
                   questions[questionKey] = question;
                 }
                 question.choices[choiceKey] = new Choice(
-                  messages[item.question],
+                  messages[questionString],
                   item.answertype,
                   item.knownPhenomenaProbabilities
                 );
@@ -90,7 +94,7 @@ class MatrixService {
   }
 
   load(matrixInput, labelsInput) {
-    return this.$q((resolve, reject) => (typeof matrixInput === "object" ? this.loadFile(matrixInput) : this.loadURL(matrixInput))
+    return this.$q((resolve, reject) => this.loadFunc(matrixInput)
       .then(matrixData => this.loadMatrixData(matrixData, labelsInput))
       .then(questions => resolve(questions))
       .catch(reason => reject(reason)));
@@ -133,10 +137,9 @@ class MatrixService {
         const index = probable ? max - count : count;
         const trad = this.msg[z];
         if (explanations[index]) {
-          explanations[index] += ", " + trad;
+          explanations[index] += `, ${trad}`;
         } else {
-          explanations[index] =
-            trad.charAt(0).toUpperCase() + trad.slice(1);
+          explanations[index] = trad.charAt(0).toUpperCase() + trad.slice(1);
         }
       }
     }
@@ -163,13 +166,13 @@ class MatrixFormController {
     this.$log = $log;
     this.matrixService = matrixService;
 
-    this.resultsType = "NonProbable";
+    this.resultsType = 'NonProbable';
     this.questionIndex = 0;
   }
 
   load() {
-    const matrixInput = document.getElementById("matrixFile").files[0] || this.matrixURL;
-    const labelsInput = document.getElementById("labelsFile").files[0] || this.labelsURL;
+    const matrixInput = document.getElementById('matrixFile').files[0] || this.matrixURL;
+    const labelsInput = document.getElementById('labelsFile').files[0] || this.labelsURL;
     if (matrixInput && labelsInput) {
       this.questions = [];
       this.matrixService.load(matrixInput, labelsInput)
@@ -190,19 +193,18 @@ class MatrixFormController {
     this.questionChanged();
   }
 
-  questionChanged() {
-    this.currentQuestion = this.questions[this.questionsKeys[this.questionIndex]];
-
+  setFieldsFor(choices) {
     this.fields = {};
-    const choices = this.currentQuestion.choices;
     const keys = Object.keys(choices);
     for (let i = 0; i < keys.length; i++) {
       const key = keys[i];
-      this.fields[key] = new Field(
-        choices[key].answerType,
-        choices[key].label
-      );
+      this.fields[key] = new Field(choices[key].answerType, choices[key].label);
     }
+  }
+
+  questionChanged() {
+    this.currentQuestion = this.questions[this.questionsKeys[this.questionIndex]];
+    this.setFieldsFor(this.currentQuestion.choices);
   }
 
   onPrevious() {
@@ -221,20 +223,20 @@ class MatrixFormController {
 
   compute(key) {
     const changedChoice = this.currentQuestion.choices[key];
-    if (changedChoice && changedChoice.answerType === "radio") {
+    if (changedChoice && changedChoice.answerType === 'radio') {
       for (const c in this.currentQuestion.choices) {
         if (this.currentQuestion.choices.hasOwnProperty(c)) {
           const choice = this.currentQuestion.choices[c];
-          if (choice.answerType === "radio") {
+          if (choice.answerType === 'radio') {
             choice.value = c === key ? key : false;
           }
         }
       }
     }
-    this.explanations = this.matrixService.compute(this.resultsType === "NonProbable");
+    this.explanations = this.matrixService.compute(this.resultsType === 'NonProbable');
   }
 }
 
-angular.module("rr0-matrix", [])
-  .service("matrixService", MatrixService)
-  .controller("MatrixFormController", MatrixFormController);
+angular.module('rr0-matrix', [])
+  .service('matrixService', MatrixService)
+  .controller('MatrixFormController', MatrixFormController);

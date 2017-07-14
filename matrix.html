@@ -64,7 +64,7 @@
   </form>
   <fieldset id="explanations" data-ng-show="ctrl.explanations">
     <legend>Explications</legend>
-    <input type="radio" id="Probable" data-ng-model="ctrl.resultsType" value="Probable" name="resultsType" data-ng-change="ctrl.compute()"><label for="Probable">probables</label>
+    <input type="radio" id="Probable" data-ng-model="ctrl.resultsType" value="Probable" name="resultsType" data-ng-change="ctrl.compute()"><label for="Probable">possibles</label>
     <input type="radio" id="NonProbable" data-ng-model="ctrl.resultsType" value="NonProbable" name="resultsType" data-ng-change="ctrl.compute()"><label for="NonProbable" checked="checked">improbables</label>
     <ol style="margin:0">
       <li ng-repeat="(k, p) in ctrl.explanations">{{ p }}</li>
