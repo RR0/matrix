@@ -1,33 +1,29 @@
 class Question {
-  constructor(t, i) {
-    this.title = t;
-    this.choices = {};
-    this.index = i;
+  private choices = {};
+
+  constructor(private title: string, private index: number) {
   }
 }
 
 class Choice {
-  constructor(l, a, knownPhenomenaProbabilities) {
-    this.label = l;
-    this.answerType = a;
-    this.knownPhenomenaProbabilities = knownPhenomenaProbabilities;
-    this.value = false;
+  private value: boolean = false;
+
+  constructor(private label: string, private answerType, private knownPhenomenaProbabilities) {
   }
 }
 
 class MatrixService {
+  private msg: any;
+  private questions: {};
 
-  constructor($log, $q, $http) {
-    this.$log = $log;
-    this.$q = $q;
-    this.$http = $http;
+  constructor(private $q, private $http) {
   }
 
-  loadURL(u) {
+  loadURL(u: string) {
     return this.$q((resolve, reject) => {
       this.$http.get(u)
         .then(response => {
-          this.$log.info(`Loaded '${u}'`);
+          console.log(`Loaded '${u}'`);
           resolve(response.data);
         })
         .catch((response, status) => {
@@ -52,7 +48,7 @@ class MatrixService {
   }
 
   loadFunc(input) {
-    const fn = typeof input === 'object' ? this.loadFile : this.loadURL;
+    const fn: Function = typeof input === 'object' ? this.loadFile : this.loadURL;
     return fn.bind(this)(input);
   }
 
@@ -99,9 +95,9 @@ class MatrixService {
       .catch(reason => reject(reason)));
   }
 
-  compute(probable) {
+  compute(probable: boolean) {
     const zerosCount = {};
-    let max = 0;
+    let max: number = 0;
     const questions = this.questions;
     for (const q in questions) {
       if (questions.hasOwnProperty(q)) {
@@ -153,20 +149,20 @@ class MatrixService {
 }
 
 class Field {
-  constructor(type, label) {
-    this.type = type;
-    this.label = label;
+  constructor(private type, private label: string) {
   }
 }
 
 class MatrixFormController {
+  private resultsType: string = 'NonProbable';
+  private questionIndex: number = 0;
+  private questions: Array;
+  private questionsKeys: string[];
+  private currentQuestion: any;
+  private fields: {};
+  private explanations: Array;
 
-  constructor($log, matrixService) {
-    this.$log = $log;
-    this.matrixService = matrixService;
-
-    this.resultsType = 'NonProbable';
-    this.questionIndex = 0;
+  constructor(private matrixService: MatrixService) {
   }
 
   load() {
@@ -181,7 +177,6 @@ class MatrixFormController {
           this.questionChanged();
         })
         .catch(reason => {
-          this.$log.error(reason);
           window.alert(reason);
         });
     }
@@ -310,7 +305,7 @@ const MatrixFormComponent = {
 </div>`,
   controllerAs: 'ctrl',
   controller: MatrixFormController
-}
+};
 
 angular.module('matrixDemo', [])
   .service('matrixService', MatrixService)
