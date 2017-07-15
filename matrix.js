@@ -70,17 +70,16 @@ class MatrixService {
             for (const d in matrixData) {
               if (matrixData.hasOwnProperty(d)) {
                 const item = matrixData[d];
-                const questionString = item.question;
-                const dotPos = questionString.indexOf('.');
-                const questionKey = questionString.substring(0, dotPos);
-                const choiceKey = questionString.substring(dotPos + 1);
+                const dotPos = item.question.indexOf('.');
+                const questionKey = item.question.substring(0, dotPos);
+                const choiceKey = item.question.substring(dotPos + 1);
                 let question = questions[questionKey];
                 if (!question) {
                   question = new Question(messages[questionKey], i++);
                   questions[questionKey] = question;
                 }
                 question.choices[choiceKey] = new Choice(
-                  messages[questionString],
+                  messages[item.question],
                   item.answertype,
                   item.knownPhenomenaProbabilities
                 );
@@ -236,7 +235,83 @@ class MatrixFormController {
     this.explanations = this.matrixService.compute(this.resultsType === 'NonProbable');
   }
 }
+const MatrixFormComponent = {
+  template: `<div ng-cloak class="matrix">
+  <details>
+    <summary>Personnalisation</summary>
+    <form name="customization">
+      <fieldset class="tabs">
+        <legend>Fichier matrice</legend>
+        <p>Il s'agit d'une liste de question + type de réponse (choix, choix multiple...) + des valeurs de matrice pour
+          ce choix.
+        </p>
+        <div class="tab">
+          <label>Exemple</label>
+          <a href=" https://raw.githubusercontent.com/RR0/rr0.org/master/time/1/9/7/7/Poher_Matrice/matrix.json" target="_blank">matrix.json</a>
+        </div>
+        <div class="tab">
+          <label for="matrixURL">URL</label>
+          <input name="matrixURL" type="text" id="matrixURL" data-ng-model="ctrl.matrixURL" data-ng-init="ctrl.matrixURL='https://raw.githubusercontent.com/RR0/rr0.org/master/time/1/9/7/7/Poher_Matrice/matrix.json'">
+        </div>
+        ou
+        <div class="tab">
+          <label for="matrixFile">Upload</label>
+          <input name="matrixFile" type="file" id="matrixFile" data-ng-model="ctrl.matrixFile">
+        </div>
+      </fieldset>
+      <fieldset class="tabs">
+        <legend>Fichier libellés</legend>
+        <p>Il s'agit des libellés à afficher pour chaque clé de question du fichier de matrice.</p>
+        <div class="tab">
+          <label>Exemples</label> <span>
+              <a href="Matrix_fr.json" target="_blank">français</a>,
+              <a href="Matrix_en.json" target="_blank">anglais</a>,
+              <a href="Matrix_it.json" target="_blank">italien</a>
+            </span>
+        </div>
+        <div class="tab">
+          <label for="labelsURL">URL</label>
+          <input name="labelsURL" type="text" id="labelsURL" data-ng-model="ctrl.labelsURL" data-ng-init="ctrl.labelsURL='https://raw.githubusercontent.com/RR0/rr0.org/master/time/1/9/7/7/Poher_Matrice/Matrix_fr.json'">
+        </div>
+        ou
+        <div class="tab">
+          <label for="labelsFile">Upload</label>
+          <input name="labelsFile" type="file" id="labelsFile" data-ng-model="ctrl.labelsFile">
+        </div>
+      </fieldset>
+      <button data-ng-click="ctrl.load()">Charger personnalisation</button>
+    </form>
+  </details>
+  <form name="questionnaire" data-ng-init="ctrl.load()">
+    <fieldset>
+      <legend>Question</legend>
+      <div style="margin-bottom:1em">
+        <input name="previousButton" type="button" value="<" data-ng-click="ctrl.onPrevious()" data-ng-disabled="ctrl.questionIndex<=0" title="Question précédente">
+        <select id="combo" data-ng-model="ctrl.currentQuestion" data-ng-options="q as q.title for (title,q) in ctrl.questions" data-ng-change="ctrl.parameterChanged()" title="Question posée"></select>
+        <input name="nextButton" type="button" value=">" data-ng-click="ctrl.onNext()" data-ng-disabled="ctrl.questionIndex>=ctrl.questionsKeys.length - 1" title="Question suivante">
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Réponse</legend>
+      <div data-ng-repeat="(key, field) in ctrl.fields">
+        <input type="{{ field.type }}" id="{{ key }}" name="{{ field.type == 'radio' ? 'rad' : 'chk' }}" value="{{ key }}" data-ng-model="ctrl.currentQuestion.choices[key].value" data-ng-change="ctrl.compute('{{ key }}')">
+        <label for="{{ key }}">{{ field.label }}</label>
+      </div>
+    </fieldset>
+  </form>
+  <fieldset id="explanations" data-ng-show="ctrl.explanations">
+    <legend>Explications</legend>
+    <input type="radio" id="Probable" data-ng-model="ctrl.resultsType" value="Probable" name="resultsType" data-ng-change="ctrl.compute()"><label for="Probable">possibles</label>
+    <input type="radio" id="NonProbable" data-ng-model="ctrl.resultsType" value="NonProbable" name="resultsType" data-ng-change="ctrl.compute()"><label for="NonProbable" checked="checked">improbables</label>
+    <ol style="margin:0">
+      <li ng-repeat="(k, p) in ctrl.explanations">{{ p }}</li>
+    </ol>
+  </fieldset>
+</div>`,
+  controllerAs: 'ctrl',
+  controller: MatrixFormController
+}
 
-angular.module('rr0-matrix', [])
+angular.module('matrixDemo', [])
   .service('matrixService', MatrixService)
-  .controller('MatrixFormController', MatrixFormController);
+  .component('rr0Matrix', MatrixFormComponent);
